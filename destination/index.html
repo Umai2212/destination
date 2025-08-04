@@ -1,0 +1,685 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destinations - Adventurer Divine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            height: 80px;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            width: 100%;
+            max-width: 1440px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .logo {
+            font-size: clamp(20px, 5vw, 24px);
+            font-weight: 700;
+            color: #2e7d32;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-menu a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 600;
+            font-size: clamp(14px, 4vw, 16px);
+        }
+
+        .nav-menu a:hover {
+            color: #2e7d32;
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            min-width: 160px;
+            z-index: 1;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content a {
+            display: block;
+            padding: 10px;
+        }
+
+        .cta-button {
+            background: #2e7d32;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: clamp(14px, 4vw, 16px);
+        }
+
+        .hamburger {
+            display: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        /* Hero Section */
+        .hero {
+            height: clamp(450px, 80vw, 500px);
+            background: url('https://images.unsplash.com/photo-1519681393784-d120267933ba') no-repeat center/cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.4));
+        }
+
+        .hero-content {
+            position: relative;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .hero-content h1 {
+            font-size: clamp(28px, 6vw, 48px);
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .hero-content p {
+            font-size: clamp(16px, 4vw, 24px);
+            margin-bottom: 20px;
+        }
+
+        .breadcrumb {
+            font-size: clamp(14px, 3vw, 16px);
+            color: #fff;
+        }
+
+        .breadcrumb a {
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 80px;
+            z-index: 900;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter {
+            padding: 8px 16px;
+            border: 1px solid #2e7d32;
+            border-radius: 20px;
+            background: #fff;
+            cursor: pointer;
+            font-size: clamp(14px, 3vw, 16px);
+        }
+
+        .filter:hover {
+            background: #2e7d32;
+            color: #fff;
+        }
+
+        /* Destination Cards */
+        .destinations {
+            padding: clamp(40px, 10vw, 60px) 20px;
+            text-align: center;
+        }
+
+        .destinations h2 {
+            font-size: clamp(24px, 5vw, 36px);
+            margin-bottom: 40px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .card-content {
+            padding: 20px;
+            text-align: left;
+        }
+
+        .card-content h3 {
+            font-size: clamp(18px, 4vw, 24px);
+            margin-bottom: 10px;
+        }
+
+        .card-content .tags {
+            margin-bottom: 10px;
+            font-size: clamp(12px, 3vw, 14px);
+            color: #666;
+        }
+
+        .card-content p {
+            font-size: clamp(14px, 3vw, 16px);
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .card-content a {
+            display: inline-block;
+            background: #2e7d32;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Featured Destination */
+        .featured {
+            padding: clamp(40px, 10vw, 60px) 20px;
+            background: #fcf8f2;
+        }
+
+        .featured-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .featured-img {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .featured-img img {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+
+        .featured-content {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+        }
+
+        .featured-content h2 {
+            font-size: clamp(24px, 5vw, 36px);
+            margin-bottom: 20px;
+        }
+
+        .featured-content p {
+            font-size: clamp(14px, 3vw, 16px);
+            margin-bottom: 20px;
+        }
+
+        .featured-content ul {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .featured-content ul li {
+            font-size: clamp(14px, 3vw, 16px);
+            margin-bottom: 10px;
+        }
+
+        .featured-content a {
+            background: #2e7d32;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Blog Posts */
+        .blog-posts {
+            padding: clamp(40px, 10vw, 60px) 20px;
+            text-align: center;
+        }
+
+        .blog-posts h2 {
+            font-size: clamp(24px, 5vw, 36px);
+            margin-bottom: 40px;
+        }
+
+        /* Newsletter Signup */
+        .newsletter {
+            padding: clamp(40px, 10vw, 60px) 20px;
+            background: #2e7d32;
+            color: #fff;
+            text-align: center;
+        }
+
+        .newsletter h2 {
+            font-size: clamp(24px, 5vw, 36px);
+            margin-bottom: 20px;
+        }
+
+        .newsletter form {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .newsletter input[type="email"] {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            width: clamp(200px, 80%, 300px);
+        }
+
+        .newsletter button {
+            background: #fff;
+            color: #2e7d32;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .footer {
+            background: #424242;
+            color: #fff;
+            padding: clamp(30px, 8vw, 40px) 20px;
+            text-align: center;
+        }
+
+        .footer-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .footer-column {
+            flex: 1;
+            min-width: clamp(150px, 40%, 200px);
+        }
+
+        .footer-column h3 {
+            font-size: clamp(16px, 4vw, 20px);
+            margin-bottom: 20px;
+        }
+
+        .footer-column a {
+            color: #fff;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 10px;
+            font-size: clamp(14px, 3vw, 16px);
+        }
+
+        .social-icons a {
+            color: #fff;
+            margin: 0 10px;
+            font-size: clamp(18px, 5vw, 24px);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-menu {
+                display: none;
+                position: absolute;
+                top: 80px;
+                left: 0;
+                width: 100%;
+                background: #fff;
+                flex-direction: column;
+                padding: 20px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+
+            .nav-menu.active {
+                display: flex;
+            }
+
+            .hamburger {
+                display: block;
+            }
+
+            .dropdown-content {
+                position: static;
+                box-shadow: none;
+            }
+
+            .cta-button {
+                margin-left: auto;
+            }
+
+            .grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            }
+
+            .featured-container {
+                flex-direction: column;
+            }
+
+            .featured-img img {
+                height: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero-content h1 {
+                font-size: clamp(24px, 8vw, 32px);
+            }
+
+            .hero-content p {
+                font-size: clamp(14px, 5vw, 18px);
+            }
+
+            .card img {
+                height: 200px;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">Adventurer Divine</div>
+            <div class="hamburger">☰</div>
+            <div class="nav-menu">
+                <a href="#">Home</a>
+                <div class="dropdown">
+                    <a href="#">Destinations ⌄</a>
+                    <div class="dropdown-content">
+                        <a href="#">Colorado</a>
+                        <a href="#">Utah</a>
+                        <a href="#">California</a>
+                    </div>
+                </div>
+                <a href="#">Hiking Routes</a>
+                <a href="#">Gear</a>
+                <a href="#">Tips & Guides</a>
+                <a href="#">Blog</a>
+            </div>
+            <a href="#" class="cta-button">Subscribe</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Discover the Best Hiking Destinations in the USA</h1>
+            <p>Explore state-by-state trails, climates, and challenges</p>
+            <div class="breadcrumb">
+                <a href="#">Home</a> / Destinations
+            </div>
+        </div>
+    </section>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div class="filter">State</div>
+        <div class="filter">Difficulty</div>
+        <div class="filter">Terrain Type</div>
+        <div class="filter">Season</div>
+        <div class="filter">Length</div>
+    </div>
+
+    <!-- Destination Cards -->
+    <section class="destinations">
+        <h2>Explore by Region</h2>
+        <div class="grid">
+            <div class="card">
+                <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e" alt="Zion">
+                <div class="card-content">
+                    <h3>Zion National Park</h3>
+                    <div class="tags">Utah, Southwest</div>
+                    <p>Iconic red rock canyons and thrilling trails.</p>
+                    <a href="#">View Trails</a>
+                </div>
+            </div>
+            <div class="card">
+                <img src="https://images.unsplash.com/photo-1465189684280-6a0316a3e23f" alt="Yosemite">
+                <div class="card-content">
+                    <h3>Yosemite National Park</h3>
+                    <div class="tags">California, West</div>
+                    <p>Granite peaks and serene valleys await.</p>
+                    <a href="#">View Trails</a>
+                </div>
+            </div>
+            <div class="card">
+                <img src="https://images.unsplash.com/photo-1517824806704-9040b037703b" alt="Great Smoky">
+                <div class="card-content">
+                    <h3>Great Smoky Mountains</h3>
+                    <div class="tags">Tennessee, Southeast</div>
+                    <p>Lush forests and diverse wildlife trails.</p>
+                    <a href="#">View Trails</a>
+                </div>
+            </div>
+            <div class="card">
+                <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba" alt="Rocky Mountain">
+                <div class="card-content">
+                    <h3>Rocky Mountain National Park</h3>
+                    <div class="tags">Colorado, Rockies</div>
+                    <p>Alpine lakes and rugged peaks.</p>
+                    <a href="#">View Trails</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Destination -->
+    <section class="featured">
+        <div class="featured-container">
+            <div class="featured-img">
+                <img src="https://images.unsplash.com/photo-1505826758259-7a03c4f86d91" alt="Appalachian Trail">
+            </div>
+            <div class="featured-content">
+                <h2>Appalachian Trail</h2>
+                <p>A 2,190-mile journey through 14 states, offering diverse landscapes from Georgia to Maine.</p>
+                <ul>
+                    <li><strong>Trail Length:</strong> 2,190 miles</li>
+                    <li><strong>Best Season:</strong> Spring to Fall</li>
+                    <li><strong>Top Trails:</strong> Springer Mountain, Mt. Moosilauke, Mt. Katahdin</li>
+                </ul>
+                <a href="#">Read Guide</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recent Blog Posts -->
+    <section class="blog-posts">
+        <h2>From the Journal</h2>
+        <div class="grid">
+            <div class="card">
+                <img src="https://images.unsplash.com/photo-1501555088652-021faa106b9b" alt="Blog 1">
+                <div class="card-content">
+                    <h3>Exploring Zion’s Hidden Gems</h3>
+                    <p>Discover lesser-known trails in Zion National Park.</p>
+                    <a href="#">Read More</a>
+                </div>
+            </div>
+            <div class="card">
+                <img src="https://images.unsplash.com/photo-1465189684280-6a0316a3e23f" alt="Blog 2">
+                <div class="card-content">
+                    <h3>Yosemite in Winter: A Hiker’s Guide</h3>
+                    <p>Tips for tackling Yosemite’s trails in the cold.</p>
+                    <a href="#">Read More</a>
+                </div>
+            </div>
+            <div class="card">
+                <img src="https://images.unsplash.com/photo-1517824806704-9040b037703b" alt="Blog 3">
+                <div class="card-content">
+                    <h3>Why the Smokies Are a Must-Hike</h3>
+                    <p>Explore the biodiversity of the Great Smoky Mountains.</p>
+                    <a href="#">Read More</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Newsletter Signup -->
+    <section class="newsletter">
+        <h2>Never Miss a Trail</h2>
+        <form>
+            <input type="email" placeholder="Enter your email" required>
+            <button type="submit">Subscribe</button>
+        </form>
+        <p>Get new destination updates and seasonal trail guides weekly</p>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-column">
+                <h3>Quick Links</h3>
+                <a href="#">Home</a>
+                <a href="#">Routes</a>
+                <a href="#">Destinations</a>
+                <a href="#">Blog</a>
+            </div>
+            <div class="footer-column">
+                <h3>About</h3>
+                <p>Adventurer Divine is your go-to resource for hiking in the USA.</p>
+                <p>Contact: info@adventurerdivine.com</p>
+            </div>
+            <div class="footer-column">
+                <h3>Follow Us</h3>
+                <div class="social-icons">
+                    <a href="#">Instagram</a>
+                    <a href="#">YouTube</a>
+                    <a href="#">Twitter</a>
+                </div>
+            </div>
+        </div>
+        <p style="margin-top: 20px;">&copy; 2025 Adventurer Divine. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Hamburger menu toggle
+        document.querySelector('.hamburger').addEventListener('click', () => {
+            document.querySelector('.nav-menu').classList.toggle('active');
+        });
+    </script>
+</body>
+</html>
